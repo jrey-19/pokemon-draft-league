@@ -5,7 +5,6 @@ from flask_wtf.csrf import CSRFProtect
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
-
 db = SQLAlchemy()
 csrf = CSRFProtect()
 login_manager = LoginManager()
@@ -23,7 +22,7 @@ def create_app():
     
     from app.models.user import User
     from app.models import user, team, pokemon
-
+    from app.models.pokemon import Pokemon
     login_manager.login_view = "index"
 
     @login_manager.user_loader
@@ -72,4 +71,10 @@ def create_app():
     def logout():
         logout_user()
         return redirect(url_for("index"))
+    @app.route("/pokemon")
+    @login_required
+    def pokemon_list():
+        all_pokemon = Pokemon.query.all()
+        return render_template("pokemon_list.html", pokemons=all_pokemon)
     return app
+# python run.py
