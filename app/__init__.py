@@ -72,11 +72,13 @@ def create_app():
     def logout():
         logout_user()
         return redirect(url_for("index"))
+    
     @app.route("/pokemon")
     @login_required
     def pokemon_list():
-        all_pokemon = Pokemon.query.all()
+        all_pokemon = Pokemon.query.filter_by(drafted_by=None).all()
         return render_template("pokemon_list.html", pokemons=all_pokemon)
+    
     @app.route("/teams", methods=["GET", "POST"])
     @login_required
     def teams():
@@ -88,6 +90,7 @@ def create_app():
             return redirect(url_for("teams"))
         user_teams = Team.query.filter_by(owner_id=current_user.id).all()
         return render_template("teams.html", teams=user_teams)
+    
     @app.route("/teams/<int:team_id>")
     @login_required
     def team_detail(team_id):
