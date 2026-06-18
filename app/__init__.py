@@ -5,6 +5,7 @@ from flask_wtf.csrf import CSRFProtect
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
+
 db = SQLAlchemy()
 csrf = CSRFProtect()
 login_manager = LoginManager()
@@ -19,7 +20,7 @@ def create_app():
     db.init_app(app)
     login_manager.init_app(app)
     Migrate(app, db)
-    
+    from app.models.team import Team
     from app.models.user import User
     from app.models import user, team, pokemon
     from app.models.pokemon import Pokemon
@@ -76,5 +77,22 @@ def create_app():
     def pokemon_list():
         all_pokemon = Pokemon.query.all()
         return render_template("pokemon_list.html", pokemons=all_pokemon)
+    @app.route("/teams", methods=["GET", "POST"])
+    @login_required
+    def teams():
+        if request.method == "POST":
+            team_name = request.form["team_name"]
+            new_team = Team(name=team_name, owner_id=current_user.id)
+            db.session.add(new_team)
+            db.session.commit()
+            return redirect(url_for("teams"))
+        user_teams = Team.query.filter_by(owner_id=current_user.id).all()
+        return render_template("teams.html", teams=user_teams)
+    @app.route("/teams/<int:team_id>")
+    @login_required
+    def team_detail(team_id):
+        team = Team.query.get_or_404(team_id)
+        return render_template("team_detail.html", team=team)
+
     return app
 # python run.py
