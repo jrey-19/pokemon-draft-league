@@ -1,12 +1,22 @@
+from re import search
+
 from flask import Flask, render_template, request, redirect, session, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy import MetaData
 
+naming_convention = {
+    "ix": "ix_%(column_0_label)s",
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s"
+}
 
-db = SQLAlchemy()
+db = SQLAlchemy(metadata=MetaData(naming_convention=naming_convention))
 csrf = CSRFProtect()
 login_manager = LoginManager()
 
@@ -22,7 +32,7 @@ def create_app():
     Migrate(app, db)
     from app.models.team import Team
     from app.models.user import User
-    from app.models import user, team, pokemon
+    from app.models import user, team, pokemon, league
     from app.models.pokemon import Pokemon
     login_manager.login_view = "index"
 
@@ -76,8 +86,12 @@ def create_app():
     @app.route("/pokemon")
     @login_required
     def pokemon_list():
-        all_pokemon = Pokemon.query.filter_by(drafted_by=None).all()
-        return render_template("pokemon_list.html", pokemons=all_pokemon)
+        search = request.args.get("search", "")
+        query = Pokemon.query.filter_by(drafted_by=None)
+        if search:
+            query = query.filter(Pokemon.name.ilike(f"%{search}%"))
+        all_pokemon = query.all()
+        return render_template("pokemon_list.html", pokemons=all_pokemon, search=search)
     
     @app.route("/teams", methods=["GET", "POST"])
     @login_required
