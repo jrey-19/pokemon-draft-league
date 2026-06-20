@@ -1,6 +1,6 @@
 from re import search
 
-from flask import Flask, render_template, request, redirect, session, url_for
+from flask import Flask, flash, render_template, request, redirect, session, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
@@ -34,6 +34,7 @@ def create_app():
     from app.models.user import User
     from app.models import user, team, pokemon, league
     from app.models.pokemon import Pokemon
+    from app.models.league import League
     login_manager.login_view = "index"
 
     @login_manager.user_loader
@@ -110,6 +111,49 @@ def create_app():
     def team_detail(team_id):
         team = Team.query.get_or_404(team_id)
         return render_template("team_detail.html", team=team)
+
+    @app.route("/leagues", methods=["GET", "POST"])
+    @login_required
+    def leagues():
+        if request.method == "POST":
+            league_name = request.form["league_name"]
+            max_teams = int(request.form["max_teams"])
+            new_league = League(name=league_name, owner_id=current_user.id, max_teams=max_teams)
+            db.session.add(new_league)
+            db.session.commit()
+            return redirect(url_for("leagues"))
+        all_leagues = League.query.all()
+        return render_template("leagues.html", leagues=all_leagues)
+
+
+    @app.route("/leagues/<int:league_id>")
+    @login_required
+    def league_detail(league_id):
+        league = League.query.get_or_404(league_id)
+        return render_template("league_detail.html", league=league)
+    
+    @app.route("/join-league", methods=["GET", "POST"])
+    @login_required
+    def join_league():
+        if request.method == "POST":
+            code = request.form["invite_code"]
+            team_name = request.form["team_name"]
+            league = League.query.filter_by(invite_code=code).first()
+
+            if not league:
+                flash("Invalid invite code.")
+                return redirect(url_for("join_league"))
+
+            if len(league.teams) >= league.max_teams:
+                flash("This league is full.")
+                return redirect(url_for("join_league"))
+
+            new_team = Team(name=team_name, owner_id=current_user.id, league_id=league.id)
+            db.session.add(new_team)
+            db.session.commit()
+            return redirect(url_for("team_detail", team_id=new_team.id))
+
+        return render_template("join_league.html")
 
     return app
 # python run.py
